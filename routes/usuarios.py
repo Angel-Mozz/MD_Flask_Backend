@@ -70,12 +70,11 @@ def login():
         cursor = get_db_connection()
         cursor.execute("SELECT * FROM usuarios WHERE email = (%s)", (email,))
         usuario = cursor.fetchone()
-        print(usuario)
 
         if not usuario or not bcrypt.check_password_hash(usuario[3], password):
             return jsonify({"Login": "Credenciales inválidas"}), 401
 
-        access_token = "dummyaccesstoken"
+        access_token = "dummyaccesstoken"  # lo puse de mientras para que no me tire error porque aun no tenemos el middleware, pero ahi lo cambio
 
         return jsonify({"access_token": access_token}), 200
 
