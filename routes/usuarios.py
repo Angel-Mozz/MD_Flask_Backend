@@ -1,6 +1,12 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+)
 from flask_bcrypt import Bcrypt
+import datetime
 
 from config.db import get_db_connection
 
@@ -68,18 +74,47 @@ def login():
 
     try:
         cursor = get_db_connection()
-        cursor.execute("SELECT * FROM usuarios WHERE email = (%s)", (email,))
+        cursor.execute(
+            "SELECT password, id_usuario FROM usuarios WHERE email = (%s)", (email,)
+        )
         usuario = cursor.fetchone()
 
-        if not usuario or not bcrypt.check_password_hash(usuario[3], password):
-            return jsonify({"Login": "Credenciales inválidas"}), 401
+        if usuario and bcrypt.check_password_hash(usuario[0], password):
 
-        access_token = "dummyaccesstoken"  # lo puse de mientras para que no me tire error porque aun no tenemos el middleware, pero ahi lo cambio
+            expires = datetime.timedelta(minutes=60)
+            access_token = create_access_token(
+                identity=str(usuario[1]), expires_delta=expires
+            )
 
-        return jsonify({"access_token": access_token}), 200
+            cursor.close()
+            return jsonify({"access_token": access_token}), 200
+        else:
+            return jsonify({"error": "Credenciales Invalidas"}), 401
 
     except Exception as e:
         return jsonify({"msg": "Error al iniciar sesión"}), 500
 
     finally:
         cursor.close()
+
+
+@usuarios_bp.route("/datos", methods=["GET"])
+@jwt_required()
+def datos():
+    current_user = get_jwt_identity()
+    cursor = get_db_connection()
+    query = "SELECT id_usuario, nombre, email FROM USUARIOS where id_usuario = %s"
+    cursor.execute(query, (current_user,))
+    usuario = cursor.fetchone()
+
+    cursor.close()
+
+    if usuario:
+        user_info = {
+            "id_usuario": usuario[0],
+            "nombre": usuario[1],
+            "email": usuario[2],
+        }
+        return jsonify({"datos": user_info}), 200
+    else:
+        return jsonify({"error": "Usuario no encontrado"}), 404

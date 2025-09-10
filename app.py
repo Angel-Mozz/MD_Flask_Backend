@@ -7,12 +7,16 @@ from routes.tareas import tareas_bp
 
 from routes.usuarios import usuarios_bp
 
+from flask_jwt_extended import JWTManager
+
 load_dotenv()
 
 
 def create_app():
     app = Flask(__name__)
     init_db(app)
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET")
+    jwt = JWTManager(app)
     app.register_blueprint(tareas_bp, url_prefix="/tareas")
     app.register_blueprint(usuarios_bp, url_prefix="/usuarios")
 
